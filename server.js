@@ -2,19 +2,36 @@
 import express from 'express';
 import nspell from 'nspell';
 import dictionaryEn from 'dictionary-en';
+import cors from 'cors';
 
 const app = express();
-const port = 3000;
+const port = 3001;
 
 // Initialize the spell checker with the English dictionary
-// We need to wrap this in an async function since dictionary loading is asynchronous
 (async () => {
   try {
-    // Load the English dictionary - the import is the dictionary itself, not a function
+    // Load the English dictionary
     const dictionary = dictionaryEn;
     
     // Create the spell checker with the loaded dictionary
     const spell = nspell(dictionary);
+    
+    // Enable CORS with a more permissive configuration
+    app.use(cors());
+    
+    // Add CORS headers directly to all responses as a backup
+    app.use((req, res, next) => {
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+      
+      // Handle preflight requests
+      if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+      }
+      
+      next();
+    });
     
     // Parse JSON request bodies
     app.use(express.json());
@@ -25,10 +42,9 @@ const port = 3000;
     });
     
     // New route to check if a word is valid
-    // This accepts a word parameter in the URL
     app.get('/check/:word', (req, res) => {
       const word = req.params.word;
-      
+      console.log('word', word);
       // Make sure we have a word to check
       if (!word || typeof word !== 'string') {
         return res.status(400).json({ error: 'Please provide a valid word' });
@@ -36,6 +52,9 @@ const port = 3000;
       
       // Check if the word is correct according to the dictionary
       const isValid = spell.correct(word);
+      
+      // Log the request and response for debugging
+      console.log(`Checking word: ${word}, isValid: ${isValid}`);
       
       // Return the result as JSON
       res.json({
